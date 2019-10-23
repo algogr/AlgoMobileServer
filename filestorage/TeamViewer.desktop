@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=TeamViewer
+Comment=PlayOnLinux
+Type=Application
+Exec=/usr/share/playonlinux/playonlinux --run "TeamViewer" %F
+Icon=/home/jim/.PlayOnLinux//icones/full_size/TeamViewer
+Name[fr_FR]=TeamViewer
+StartupWMClass=TeamViewer.exe
+Categories=
