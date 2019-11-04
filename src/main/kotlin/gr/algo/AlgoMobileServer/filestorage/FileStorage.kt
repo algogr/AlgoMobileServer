@@ -12,4 +12,8 @@ interface FileStorage {
     fun deleteAll()
     fun init()
     fun loadFiles(): Stream<Path>
+    fun backupFile(filename: String)
+    fun copyLatest(filename: String)
+    fun latestToOriginal(filename: String)
+    fun deleteFile(filename: String)
 }

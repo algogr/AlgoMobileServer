@@ -32,7 +32,7 @@ class DownloadFileController {
     fun downloadFile(@PathVariable filename: String): ResponseEntity<Resource> {
         println(filename)
         val file = fileStorage.loadFile(filename)
-        commService.AndroidtoAtlantis()
+        //commService.AndroidtoAtlantis()
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")

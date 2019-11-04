@@ -39,7 +39,8 @@ class DBConfig {
     fun dataSource2(): DataSource {
         val dataSourceBuilder = DataSourceBuilder.create()
         dataSourceBuilder.driverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
-        dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=xLINENICEICE")
+        //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=xLINENICEICE")
+        dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=XT_002_2019")
         return dataSourceBuilder.build()
         //return  DataSourceBuilder.create().build()
     }
@@ -49,6 +50,28 @@ class DBConfig {
     fun jdbcTemplate2(@Qualifier("mssql") ds:DataSource):JdbcTemplate {
         return JdbcTemplate(ds)
     }
+
+
+
+    @Bean(name = arrayOf("sqlite1"))
+    @ConfigurationProperties(prefix = "spring.datasource")
+    fun dataSource3(): DataSource {
+
+
+        val dataSourceBuilder = DataSourceBuilder.create()
+        dataSourceBuilder.driverClassName("org.sqlite.JDBC")
+        dataSourceBuilder.url("jdbc:sqlite:filestorage/algo.sqlite.LATEST")
+        return dataSourceBuilder.build()
+
+
+
+    }
+
+    @Bean(name = arrayOf("jdbcTemplate3"))
+    fun jdbcTemplate3(@Qualifier("sqlite1") ds:DataSource):JdbcTemplate {
+        return JdbcTemplate(ds)
+    }
+
 
 
 

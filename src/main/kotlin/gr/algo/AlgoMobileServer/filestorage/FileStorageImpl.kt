@@ -14,6 +14,8 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.File
+import java.time.LocalDateTime
 
 @Service
 class FileStorageImpl: FileStorage{
@@ -40,6 +42,29 @@ class FileStorageImpl: FileStorage{
 
     override fun deleteAll(){
         FileSystemUtils.deleteRecursively(rootLocation.toFile())
+    }
+
+    override fun backupFile(filename: String) {
+        val file= File(rootLocation.resolve(filename).toString())
+        file.copyTo(File(rootLocation.resolve(filename).toString()+"."+ LocalDateTime.now().toString()))
+    }
+
+    override fun copyLatest(filename: String) {
+        val file= File(rootLocation.resolve(filename).toString())
+        file.copyTo(File(rootLocation.resolve(filename).toString()+".LATEST"))
+    }
+
+    override fun latestToOriginal(filename: String) {
+        val file= File(rootLocation.resolve(filename).toString())
+        file.delete()
+        val file1= File(rootLocation.resolve(filename).toString()+".LATEST")
+        file1.copyTo(File(rootLocation.resolve(filename).toString()))
+        file1.delete()
+    }
+
+    override fun deleteFile(filename: String) {
+        val file= File(rootLocation.resolve(filename).toString())
+        file.delete()
     }
 
     override fun init(){
