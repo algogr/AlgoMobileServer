@@ -36,9 +36,10 @@ class UploadFileController {
         fileStorage.copyLatest(file.originalFilename!!)
 
         model.addAttribute("message", "File uploaded successfully! -> filename = " + file.getOriginalFilename())
-
+        //TODO("CONFIGURE ACTIVE FUNS")
         //cs.AndroidtoAtlantis()
         //cs.AtlantistoAndroid()
+        cs.AndroidtoCapital()
         cs.CapitaltoAndroid()
 
 

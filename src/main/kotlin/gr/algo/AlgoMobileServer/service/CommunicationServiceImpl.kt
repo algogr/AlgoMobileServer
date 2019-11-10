@@ -1,5 +1,6 @@
 package gr.algo.AlgoMobileServer.service
 
+import gr.algo.AlgoMobileServer.AlgoMobileServerApplication
 import net.bytebuddy.utility.JavaModule.ofType
 import org.apache.juli.logging.Log
 import org.springframework.beans.factory.annotation.Autowired
@@ -38,6 +39,10 @@ class CommunicationServiceImpl:CommunicationService {
     @Autowired
     @Qualifier("jdbcTemplate1")
     private val sqlite3: JdbcTemplate? = null
+
+
+    @Autowired
+    lateinit var app:AlgoMobileServerApplication
 
 
     val comid=1
@@ -217,7 +222,7 @@ class CommunicationServiceImpl:CommunicationService {
 
         /////MATERIAL
         sqlite2?.update("DELETE from material")
-        sqlsrv1?.query("SELECT m.code,m.description,m.whsprice,m.vtcid,m.id,m.maxdiscount,ms.code from material m,mesunit ms where m.mu1=ms.codeid and m.isactive=1 and m.comid="+comid){
+        sqlsrv1?.query("SELECT m.code,m.description,m.whsprice,m.vtcid,m.id,m.defaultdiscount,ms.code from material m,mesunit ms where m.mu1=ms.codeid and m.isactive=1 and m.comid="+comid){
             resultSet->
                             do {
                     sqlite2?.update("INSERT INTO material (code,description,price,vatid,erpid,maxdiscount,unit) VALUES ('"+resultSet.getString(1)+"','"+resultSet.getString(2)+"',"+resultSet.getFloat(3).toString()+","+resultSet.getInt(4).toString()
@@ -379,6 +384,27 @@ class CommunicationServiceImpl:CommunicationService {
 
             }
 
+        /////STORECUSTDATA
+        sqlite2?.update("DELETE from storecustdata")
+        val query1="with cte as (select c.id cusid,m.id iteid,f.ftrdate ftrdate,st.primaryqty primaryqty,st.PRICE price,st.PRCDISC1 discount,st.PRCDISC2 discount2,ROW_NUMBER() " +
+                "over (partition by c.id,m.id order by f.ftrdate desc) as rn from customer c inner join FINTRADE f on c.id=f.CUSID inner join STORETRADELINES st on st.FTRID=f.id " +
+                "inner join ITEMTRANS i on i.stlid=st.ID inner join MATERIAL m on m.id=i.ITEID  where m.comid=1 and i.OUTPUTVALMODE=1) select * from cte where rn=1"
+
+        sqlsrv1?.query(query1){
+            resultSet->
+
+            do {
+                sqlite2?.update("INSERT INTO storecustdata (iteid,cusid,lastqty,lastprice,lastdiscount,lastdiscount2,lastdate) values("+
+                        resultSet.getInt(2).toString()+","+resultSet.getInt(1).toString()+
+                        ","+resultSet.getFloat(4).toString()+","+resultSet.getFloat(5).toString()+
+                        ","+resultSet.getFloat(6).toString()+","+resultSet.getFloat(7).toString()+
+                        ",'"+resultSet.getString(3)+"')")
+
+            }  while (resultSet.next())
+
+        }
+
+
 
 
         /////////DOCSERIES
@@ -494,6 +520,8 @@ class CommunicationServiceImpl:CommunicationService {
 
 
         sqlsrv1?.update("INSERT INTO z_log (task,backupfile,cdatetime) values (1,'algo.sqlite.db"+LocalDateTime.now().toString()+"-1',getdate())")
+        app.restart()
+
 
     }
 
@@ -629,6 +657,8 @@ class CommunicationServiceImpl:CommunicationService {
             }while (resultSet.next())
         }
 
+            sqlsrv1?.update("update z_fintrade set cuscode=(select code from customers where id=z_fintrade.cusid)")
+            sqlsrv1?.update("update z_storetradelines set itecode=(select code from stockitems where id=z_storetradelines.iteid)")
 
 
         println("SALES INVOICES")
@@ -682,7 +712,7 @@ class CommunicationServiceImpl:CommunicationService {
         //TODO("ISACTIVE ITEMS FIELD?????")
         sqlite2?.update("DELETE from material")
 
-        sqlsrv1?.query("SELECT m.code,m.descr,m.whsprice,m.vatid,m.id,m.maxdiscount,ms.idx from stockitems m,stockunits ms where m.stuid=ms.idx and m.code not like '99%'"){
+        sqlsrv1?.query("SELECT m.code,m.descr,m.whsprice,m.vatid,m.id,m.discount,ms.idx from stockitems m,stockunits ms where m.stuid=ms.idx and m.code not like '99%'"){
             resultSet->
             do {
                 sqlite2?.update("INSERT INTO material (code,description,price,vatid,erpid,maxdiscount,unit) VALUES ('"+resultSet.getString(1)+"','"+resultSet.getString(2)+"',"+resultSet.getFloat(3).toString()+","+resultSet.getInt(4).toString()
@@ -811,7 +841,7 @@ class CommunicationServiceImpl:CommunicationService {
 
 
 
-        ////EDO  EIMAI
+
         /////TABLETINFO
 
 
@@ -832,21 +862,46 @@ class CommunicationServiceImpl:CommunicationService {
 
 
         sqlite2?.update("DELETE from storefindata")
-        val sdadsrid= sqlsrv1?.queryForObject<Int>("SELECT sdadsrid from z_pda where salesmanid="+salesmanid.toString())
+        // CUSTOM LUI
+        // val sdadsrid= sqlsrv1?.queryForObject<Int>("SELECT sdadsrid from z_pda where salesmanid="+salesmanid.toString())
 
-        val ftrid=sqlsrv1?.queryForObject<Int>("select max(id) from salestrades f where f.dsrid="+sdadsrid.toString()+" and f.trndate=DATEADD(DAY, DATEDIFF(DAY, 0, GETDATE()), 0) and f.selid="+salesmanid)
+        //val ftrid=sqlsrv1?.queryForObject<Int>("select max(id) from salestrades f where f.dsrid="+sdadsrid.toString()+" and f.trndate=DATEADD(DAY, DATEDIFF(DAY, 0, GETDATE()), 0) and f.selid="+salesmanid)
 
-
-        sqlsrv1?.query("select st.iteid,sum(st.qty) from salestrades f,stockitemtrans st where st.slsid=f.id and f.id="+ftrid.toString()+" group by st.iteid"){
+        //val query="select st.iteid,sum(st.qty) from salestrades f,stockitemtrans st where st.slsid=f.id and f.id="+ftrid.toString()+" group by st.iteid"
+        val query="select iteid,balanceqty from stockitemfindata"
+        sqlsrv1?.query(query){
             resultSet->
 
             do {
-                sqlite2?.update("INSERT INTO storefindata (iteid,startqty,qty) select id,"+resultSet.getFloat(2).toString(),","+resultSet.getFloat(2).toString()+
-                        "from material where erpid="+resultSet.getInt(1).toString())
+                sqlite2?.update("INSERT INTO storefindata (iteid,startqty,qty) values("+resultSet.getInt(1).toString()+","
+                        +resultSet.getFloat(2).toString()+","+resultSet.getFloat(2).toString()+")")
 
             }  while (resultSet.next())
 
         }
+
+        /////STORECUSTDATA
+        sqlite2?.update("DELETE from storecustdata")
+        val query1="select a.iteid,a.cusid, CONVERT(varchar, a.lastdate, 101),a.lastprice,a.lastprcdisc,a.lastprcdisc2,(select top 1 qty from stockitemtrans b " +
+                "inner join salestrades c on b.slsid=c.id where a.iteid=b.iteid and a.cusid=c.cusid and a.lastdate=b.trndate and b.outvalflag=1)from STOCKITEMCUSFINDATA a"
+
+        sqlsrv1?.query(query1){
+            resultSet->
+
+            do {
+                sqlite2?.update("INSERT INTO storecustdata (iteid,cusid,lastqty,lastprice,lastdiscount,lastdiscount2,lastdate) values("+
+                        resultSet.getInt(1).toString()+","+resultSet.getInt(2).toString()+
+                        ","+resultSet.getFloat(7).toString()+","+resultSet.getFloat(4).toString()+
+                        ","+resultSet.getFloat(5).toString()+","+resultSet.getFloat(6).toString()+
+                        ",'"+resultSet.getString(3)+"')")
+
+            }  while (resultSet.next())
+
+        }
+
+
+
+
 
 
 

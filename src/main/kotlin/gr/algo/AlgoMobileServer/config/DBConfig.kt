@@ -38,9 +38,11 @@ class DBConfig {
     @ConfigurationProperties(prefix = "spring.second-datasource")
     fun dataSource2(): DataSource {
         val dataSourceBuilder = DataSourceBuilder.create()
+        // TODO("CONFIGURE CONNECTION STRINGS")
         dataSourceBuilder.driverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
         //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=xLINENICEICE")
         dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=XT_002_2019")
+        //dataSourceBuilder.url("jdbc:sqlserver://localhost:1433;databaseName=XT_002_2019")
         return dataSourceBuilder.build()
         //return  DataSourceBuilder.create().build()
     }
