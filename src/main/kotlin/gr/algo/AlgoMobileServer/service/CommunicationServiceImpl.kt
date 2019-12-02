@@ -1,10 +1,13 @@
 package gr.algo.AlgoMobileServer.service
 
 import gr.algo.AlgoMobileServer.AlgoMobileServerApplication
+import gr.algo.AlgoMobileServer.context
 import net.bytebuddy.utility.JavaModule.ofType
 import org.apache.juli.logging.Log
+import org.omg.CORBA.Environment
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.core.RowCallbackHandler
 import org.springframework.jdbc.core.RowMapper
@@ -14,6 +17,7 @@ import java.sql.ResultSet
 import java.sql.SQLException
 import java.text.SimpleDateFormat
 import java.time.LocalDateTime
+import javax.annotation.PostConstruct
 import kotlin.system.exitProcess
 
 @Service
@@ -44,9 +48,16 @@ class CommunicationServiceImpl:CommunicationService {
     @Autowired
     lateinit var app:AlgoMobileServerApplication
 
+    @Value("\${algo.lui.customercodemask}")
+    val codeMask:String?=""
+    @Value("\${algo.lui.comid}")
+    var comId:Int?=null
+    @Value("\${algo.lui.salesmanid}")
+    var salesmanid:Int?=null
+    @Value("\${algo.lui.customerpricesquery}")
+    var pricesQuery:String=""
 
-    val comid=1
-    val salesmanid=1
+
 
 
 
@@ -61,17 +72,17 @@ class CommunicationServiceImpl:CommunicationService {
                 do
 
                 {
-                    //fun(){TODO("Parameterise code mask")}
-                    val code:String?=(Integer.parseInt(sqlsrv1?.queryForObject("SELECT TOP 1 CODE FROM customer where code like '0%' and comid="+comid.toString()+" order by code desc", String::class.java))+1).toString().padStart(4,'0')
+
+                    val code:String?=(Integer.parseInt(sqlsrv1?.queryForObject("SELECT TOP 1 CODE FROM customer where code like '$codeMask%' and comId="+comId.toString()+" order by code desc", String::class.java))+1).toString().padStart(4,'0')
                     val doy={if(resultSet.getInt(6)==0) "NULL" else resultSet.getInt(6).toString()}
-                    sqlsrv1?.update("INSERT INTO CUSTOMER(name,street1,district1,identitynum,afm,doyid,occupation,phone11,phone12,fax1,email,fpastatus,city1,remarks,rotid,comid,curid,code) " +
+                    sqlsrv1?.update("INSERT INTO CUSTOMER(name,street1,district1,identitynum,afm,doyid,occupation,phone11,phone12,fax1,email,fpastatus,city1,remarks,rotid,comId,curid,code) " +
                             "VALUES ('"+resultSet.getString(1)+"','"+resultSet.getString(2)+"','"+resultSet.getString(3)+"','"+resultSet.getString(4)+"','"+
                             resultSet.getString(5)+"',"+doy()+",'"+resultSet.getString(7)+"','"+resultSet.getString(8)+"','"+
                             resultSet.getString(9)+"','"+resultSet.getString(10)+"','"+resultSet.getString(11)+"','"+resultSet.getString(12)+"','"+
-                            resultSet.getString(13)+"','"+resultSet.getString(14)+"',"+resultSet.getString(15)+","+comid.toString()+",1,'"+code+"')")
+                            resultSet.getString(13)+"','"+resultSet.getString(14)+"',"+resultSet.getString(15)+","+comId.toString()+",1,'"+code+"')")
                     val oldId=resultSet.getString(16)
                     sqlite2?.update("UPDATE customer set erpupd=1 where id="+oldId)
-                    val newId=sqlsrv1?.queryForObject<String>("select id from customer where code='"+code+"' and comid="+comid)
+                    val newId=sqlsrv1?.queryForObject<String>("select id from customer where code='"+code+"' and comId="+comId)
                     sqlite2?.update("UPDATE customer set erpid="+newId+" where id="+oldId)
                     sqlite2?.update("UPDATE customer set id="+newId+" where id="+oldId)
                     sqlite2?.update("UPDATE cashtrn set perid="+newId+" where perid="+oldId)
@@ -124,7 +135,8 @@ class CommunicationServiceImpl:CommunicationService {
 
 
 
-        sqlite2?.query("SELECT ftrdate,f.dsrid,f.dsrnumber,f.cusid,f.comments,f.deliveryaddress,f.netvalue,f.vatamount,f.totamount,f.id,c.vatstatusid from fintrade f,customer c where c.id=f.cusid and f.erpupd=0")
+        sqlite2?.query("SELECT ftrdate,f.dsrid,f.dsrnumber,f.cusid,f.comments,f.deliveryaddress,f.netvalue,f.vatamount,f.totamount,f.id," +
+                "c.vatstatusid,f.suberpid,f.shptoperid,f.shptoaddid from fintrade f,customer c where c.id=f.cusid and f.erpupd=0")
             {   resultSet->
                     do  {
 
@@ -141,13 +153,14 @@ class CommunicationServiceImpl:CommunicationService {
                             5->dsrId=sqlsrv2?.queryForObject<Int>("SELECT pagdsrid from z_pda where salesmanid="+salesmanid)
                         }
 
-                        sqlsrv1?.update("INSERT INTO z_fintrade (ftrdate,dsrid,dsrnumber,cusid,comments,deliveryaddress,netvalue,vatamount,totamount,salesmanid,vatstatusid) values ('"
+                        sqlsrv1?.update("INSERT INTO z_fintrade (ftrdate,dsrid,dsrnumber,cusid,comments,deliveryaddress,netvalue,vatamount,totamount,salesmanid,vatstatusid,f.suberpid,f.shptoperid,f.shptoaddid) values ('"
                                 +tdate+"',"+dsrId.toString()+","+ resultSet.getInt(3).toString()+","+resultSet.getInt(4).toString()+",'"+ resultSet.getString(5)+"','"+resultSet.getString(6)
-                                +"',"+resultSet.getFloat(7).toString()+","+resultSet.getFloat(8).toString()+","+resultSet.getFloat(9).toString()+","+salesmanid+","+stdvatstatus+")")
+                                +"',"+resultSet.getFloat(7).toString()+","+resultSet.getFloat(8).toString()+","+resultSet.getFloat(9).toString()+","+salesmanid+","+stdvatstatus+
+                                ","+resultSet.getInt(12)+","+resultSet.getInt(13)+","+resultSet.getInt(14)+")")
                         ftrId=sqlsrv1?.queryForObject<Int>("SELECT id from z_fintrade where ftrdate='"+tdate+"' and dsrid="+dsrId.toString()+" and dsrnumber="+resultSet.getInt(3).toString()+
                                 " and cusid="+resultSet.getInt(4).toString())
 
-                        sqlite2?.query("SELECT iteid,primaryqty,price,discount,discountpercent,linevalue,vatamount,vatid from storetradelines where ftrid="+resultSet.getInt(10).toString())
+                        sqlite2?.query("SELECT iteid,primaryqty,price,discount,secdiscount,linevalue,vatamount,vatid from storetradelines where ftrid="+resultSet.getInt(10).toString())
                         {
                             resultSet1->
                                 do{
@@ -155,7 +168,7 @@ class CommunicationServiceImpl:CommunicationService {
                                         true -> 99
                                         false -> resultSet1.getInt(8)
                                     }
-                                    sqlsrv1?.update("INSERT INTO z_storetradelines(ftrid,iteid,primaryqty,price,discount,discountpercent,linevalue,vatamount,vatid) values (" + ftrId + "," + resultSet1.getInt(1).toString()
+                                    sqlsrv1?.update("INSERT INTO z_storetradelines(ftrid,iteid,primaryqty,price,discount,secdiscount,linevalue,vatamount,vatid) values (" + ftrId + "," + resultSet1.getInt(1).toString()
                                             + "," + resultSet1.getFloat(2).toString() + "," + resultSet1.getFloat(3).toString() + "," + resultSet1.getFloat(4).toString() + ","
                                             + resultSet1.getFloat(5).toString() + "," + resultSet1.getFloat(6).toString() + "," + resultSet1.getFloat(7).toString() + "," + vtcId.toString() + ")")
                                 }while (resultSet1.next())
@@ -222,7 +235,7 @@ class CommunicationServiceImpl:CommunicationService {
 
         /////MATERIAL
         sqlite2?.update("DELETE from material")
-        sqlsrv1?.query("SELECT m.code,m.description,m.whsprice,m.vtcid,m.id,m.defaultdiscount,ms.code from material m,mesunit ms where m.mu1=ms.codeid and m.isactive=1 and m.comid="+comid){
+        sqlsrv1?.query("SELECT m.code,m.description,m.whsprice,m.vtcid,m.id,m.defaultdiscount,ms.code from material m,mesunit ms where m.mu1=ms.codeid and m.isactive=1 and m.comId="+comId){
             resultSet->
                             do {
                     sqlite2?.update("INSERT INTO material (code,description,price,vatid,erpid,maxdiscount,unit) VALUES ('"+resultSet.getString(1)+"','"+resultSet.getString(2)+"',"+resultSet.getFloat(3).toString()+","+resultSet.getInt(4).toString()
@@ -252,13 +265,13 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from customer")
 
 
-        sqlsrv1?.query("SELECT id,name,street1,district1,identitynum,afm,doyid,occupation,phone11,phone12,fax1,email,fpastatus, city1,remarks,rotid from customer where isactive=1 and comid="+comid)
+        sqlsrv1?.query("SELECT id,name,street1,district1,identitynum,afm,doyid,occupation,phone11,phone12,fax1,email,fpastatus, city1,remarks,rotid,z_isthird from customer where isactive=1 and comId="+comId)
         {resultSet->
                 do{
                     sqlite2?.update("INSERT INTO customer (erpid,name,address,district,title,afm,doyid,occupation,tel1,tel2,fax,email,vatstatusid,city,comments,routeid,erpupd) VALUES ("+resultSet.getInt(1).toString()+
                             ",'" +resultSet.getString(2)+"','"+resultSet.getString(3) +"','"+resultSet.getString(4)+"','"+resultSet.getString(5)+"','"+resultSet.getString(6)+
                             "',"+resultSet.getInt(7).toString()+",'"+resultSet.getString(8)+"','"+resultSet.getString(9)+"','"+resultSet.getString(10)+"','"+resultSet.getString(11)+
-                            "','"+resultSet.getString(12)+"',"+resultSet.getInt(13).toInt()+",'"+resultSet.getString(14)+"','"+resultSet.getString(15)+"',"+resultSet.getInt(16).toString()+",1)"                    )
+                            "','"+resultSet.getString(12)+"',"+resultSet.getInt(13).toInt()+",'"+resultSet.getString(14)+"','"+resultSet.getString(15)+"',"+resultSet.getInt(16).toString()+","+resultSet.getInt(17)+",1)"                    )
                 } while (resultSet.next())
 
             }
@@ -303,7 +316,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from route")
 
 
-        sqlsrv1?.query("SELECT codeid,descr from route where comid="+comid)
+        sqlsrv1?.query("SELECT codeid,descr from route where comId="+comId)
         {
             resultSet->
 
@@ -319,10 +332,11 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from customerprices")
 
 
-        sqlsrv1?.query("SELECT domainid1,domainid2,fld1 from prdata where comid="+comid){
+        sqlsrv1?.query(pricesQuery){
             resultSet->
                 do {
-                    sqlite2?.update("INSERT INTO customerprices (cusid,iteid,price) VALUES ("+resultSet.getInt(1).toString()+"," +resultSet.getString(2)+","+resultSet.getFloat(3).toString()+")")
+                    sqlite2?.update("INSERT INTO customerprices (cusid,iteid,price,discount,secdiscount) VALUES ("+resultSet.getInt(1).toString()+"," +resultSet.getInt(2).toString()
+                            +","+resultSet.getFloat(3).toString()+","+resultSet.getFloat(4).toString()+","+resultSet.getFloat(5).toString()+")")
                 } while (resultSet.next())
 
             }
@@ -336,7 +350,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from salesman")
 
 
-        sqlsrv1?.query("SELECT id,name from salesman where comid="+comid){
+        sqlsrv1?.query("SELECT id,name from salesman where comId="+comId){
             resultSet->
 
                 do {
@@ -344,6 +358,26 @@ class CommunicationServiceImpl:CommunicationService {
                 }  while (resultSet.next())
 
             }
+
+
+
+        ///SUBSIDIARIES
+
+        sqlite2?.update("DELETE from subsidiary")
+
+
+        sqlsrv1?.query("SELECT cu.descr,cu.street,cu.district,cu.fpastatus,cu.rotid,cu.perid,cu.city from custaddress cu inner join customer c on" +
+                "cu.perid=c.id where c.comId="+comId){
+            resultSet->
+
+            do {
+                sqlite2?.update("INSERT INTO subsidiary (descr,street,district,vatstatus,rotid,perid,erpid,city) values ('"+
+                        resultSet.getString(1)+"','"+resultSet.getString(2)+"','"+resultSet.getString(3)+"',"+
+                        resultSet.getInt(4).toString()+","+resultSet.getInt(5)+","+resultSet.getInt(6) +
+                        ","+resultSet.getInt(7)+",'"+resultSet.getString(8)+"')")
+            }  while (resultSet.next())
+
+        }
 
 
 
@@ -370,7 +404,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from storefindata")
         val sdadsrid= sqlsrv1?.queryForObject<Int>("SELECT sdadsrid from z_pda where salesmanid="+salesmanid)
 
-        val ftrid=sqlsrv1?.queryForObject<Int>("select max(id) from fintrade f where f.dsrid="+sdadsrid.toString()+" and f.ftrdate=DATEADD(DAY, DATEDIFF(DAY, 0, GETDATE()), 0) and f.colidsalesman="+salesmanid+" and f.comid="+comid)
+        val ftrid=sqlsrv1?.queryForObject<Int>("select max(id) from fintrade f where f.dsrid="+sdadsrid.toString()+" and f.ftrdate=DATEADD(DAY, DATEDIFF(DAY, 0, GETDATE()), 0) and f.colidsalesman="+salesmanid+" and f.comId="+comId)
 
 
         sqlsrv1?.query("select st.iteid,sum(st.primaryqty) from fintrade f,storetradelines st where st.ftrid=f.id and f.id="+ftrid+" group by st.iteid"){
@@ -388,7 +422,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from storecustdata")
         val query1="with cte as (select c.id cusid,m.id iteid,f.ftrdate ftrdate,st.primaryqty primaryqty,st.PRICE price,st.PRCDISC1 discount,st.PRCDISC2 discount2,ROW_NUMBER() " +
                 "over (partition by c.id,m.id order by f.ftrdate desc) as rn from customer c inner join FINTRADE f on c.id=f.CUSID inner join STORETRADELINES st on st.FTRID=f.id " +
-                "inner join ITEMTRANS i on i.stlid=st.ID inner join MATERIAL m on m.id=i.ITEID  where m.comid=1 and i.OUTPUTVALMODE=1) select * from cte where rn=1"
+                "inner join ITEMTRANS i on i.stlid=st.ID inner join MATERIAL m on m.id=i.ITEID  where m.comId=$comId and i.OUTPUTVALMODE=1) select * from cte where rn=1"
 
         sqlsrv1?.query(query1){
             resultSet->
@@ -415,7 +449,7 @@ class CommunicationServiceImpl:CommunicationService {
         var series:String=""
         var lastno:Int?=0
 
-        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.tdadsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comid="+comid)
+        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.tdadsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comId="+comId)
             { rs: ResultSet, _: Int -> codeId=rs.getInt("codeid")
                 series=rs.getString("series")
 
@@ -425,7 +459,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("UPDATE docseries set erpdsrid="+codeId.toString()+" where id=1")
         //sqlite1?.update("UPDATE docseries set series='"+series+"'where id=1")
 
-        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comid="+comid+" and dsrid="+codeId)
+        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comId="+comId+" and dsrid="+codeId)
 
         val qry="UPDATE docseries set lastno="+lastno.toString()+" where id=1"
 
@@ -434,7 +468,7 @@ class CommunicationServiceImpl:CommunicationService {
 
 
 
-        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.pisdsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comid="+comid)
+        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.pisdsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comId="+comId)
         { rs: ResultSet, _: Int -> codeId=rs.getInt("codeid")
             series=rs.getString("series")
 
@@ -445,13 +479,13 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("UPDATE docseries set erpdsrid="+codeId.toString()+" where id=2")
         //sqlite1?.update("UPDATE docseries set series='"+series+"'where id=2")
 
-        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comid="+comid+" and dsrid="+codeId)
+        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comId="+comId+" and dsrid="+codeId)
 
         sqlite2?.update("UPDATE docseries set lastno="+lastno.toString()+" where id=2")
 
 
 
-        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.dadsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comid="+comid)
+        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.dadsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comId="+comId)
         { rs: ResultSet, _: Int -> codeId=rs.getInt("codeid")
             series=rs.getString("series")
 
@@ -462,13 +496,13 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("UPDATE docseries set erpdsrid="+codeId.toString()+" where id=3")
         //sqlite1?.update("UPDATE docseries set series='"+series+"'where id=3")
 
-        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comid="+comid+" and dsrid="+codeId)
+        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comId="+comId+" and dsrid="+codeId)
 
         sqlite2?.update("UPDATE docseries set lastno="+lastno.toString()+" where id=3")
 
 
 
-        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.depdsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comid="+comid)
+        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.depdsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comId="+comId)
         { rs: ResultSet, _: Int -> codeId=rs.getInt("codeid")
             series=rs.getString("series")
 
@@ -478,12 +512,12 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite1?.update("UPDATE docseries set erpdsrid="+codeId.toString()+" where id=4")
         // sqlite1?.update("UPDATE docseries set series='"+series+"'where id=4")
 
-        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comid="+comid+" and dsrid="+codeId)
+        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comId="+comId+" and dsrid="+codeId)
 
         sqlite2?.update("UPDATE docseries set lastno="+lastno.toString()+" where id=4")
 
 
-        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.pagdsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comid="+comid)
+        sqlsrv1?.queryForObject("SELECT codeid,left(code,2) as series from docseries d,z_pda z where d.codeid=z.pagdsrid and z.salesmanid="+salesmanid+" and d.domaintype=2 and d.comId="+comId)
         { rs: ResultSet, _: Int -> codeId=rs.getInt("codeid")
             series=rs.getString("series")
 
@@ -493,7 +527,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("UPDATE docseries set erpdsrid="+codeId.toString()+" where id=5")
         //sqlite1?.update("UPDATE docseries set series='"+series+"'where id=5")
 
-        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comid="+comid+" and dsrid="+codeId)
+        lastno=sqlsrv1?.queryForObject<Int>("SELECT isnull(max(dsrnumber),0) from fintrade where fyeid=year(getdate()) and domaintype=2 and comId="+comId+" and dsrid="+codeId)
 
         sqlite2?.update("UPDATE docseries set lastno="+lastno.toString()+" where id=5")
 
@@ -534,15 +568,14 @@ class CommunicationServiceImpl:CommunicationService {
 
 
 
-
         sqlite1?.query("SELECT name,address,district,title,afm,doyid,occupation,tel1,tel2,fax,email,vatstatusid,city," +
                 " comments,5,id from customer where erpid=0")
         {resultSet->
             do
 
             {
-                //fun(){TODO("Parameterise code mask")}
-                val code:String?=(Integer.parseInt(sqlsrv1?.queryForObject("SELECT TOP 1 CODE FROM customers where code like '99%' order by code desc", String::class.java))+1).toString().padStart(4,'0')
+
+                val code:String?=(Integer.parseInt(sqlsrv1?.queryForObject("SELECT TOP 1 CODE FROM customers where code like '$codeMask%' order by code desc", String::class.java))+1).toString().padStart(4,'0')
                 val doy={if(resultSet.getInt(6)==0) "NULL" else resultSet.getInt(6).toString()}
                 sqlsrv1?.update("INSERT INTO CUSTOMERS(descr,address,district,userstr1,tin,tcdid,occupation,phone,phone2,fax,email,vstid,city,comment,rotid,code) " +
                         "VALUES ('"+resultSet.getString(1)+"','"+resultSet.getString(2)+"','"+resultSet.getString(3)+"','"+resultSet.getString(4)+"','"+
@@ -595,6 +628,8 @@ class CommunicationServiceImpl:CommunicationService {
 
         /// SALES INVOICES
 
+        ////*******************TODO() SECOND DISCOUNT
+
         sqlsrv1?.update("DELETE from z_fintrade")
         sqlsrv1?.update("DELETE from z_storetradelines")
         sqlsrv1?.update("DELETE from z_cash")
@@ -604,7 +639,8 @@ class CommunicationServiceImpl:CommunicationService {
 
 
 
-        sqlite2?.query("SELECT ftrdate,f.dsrid,f.dsrnumber,f.cusid,f.comments,f.deliveryaddress,f.netvalue,f.vatamount,f.totamount,f.id,c.vatstatusid from fintrade f,customer c where c.id=f.cusid and f.erpupd=0")
+        sqlite2?.query("SELECT ftrdate,f.dsrid,f.dsrnumber,f.cusid,f.comments,f.deliveryaddress,f.netvalue,f.vatamount,f.totamount,f.id," +
+                "c.vatstatusid,f.suberpid,f.shptoperid,f.shptoaddid from fintrade f,customer c where c.id=f.cusid and f.erpupd=0")
         {   resultSet->
             do  {
 
@@ -623,11 +659,12 @@ class CommunicationServiceImpl:CommunicationService {
 
                 sqlsrv1?.update("INSERT INTO z_fintrade (ftrdate,dsrid,dsrnumber,cusid,comments,deliveryaddress,netvalue,vatamount,totamount,salesmanid,vatstatusid) values ('"
                         +tdate+"',"+dsrId.toString()+","+ resultSet.getInt(3).toString()+","+resultSet.getInt(4).toString()+",'"+ resultSet.getString(5)+"','"+resultSet.getString(6)
-                        +"',"+resultSet.getFloat(7).toString()+","+resultSet.getFloat(8).toString()+","+resultSet.getFloat(9).toString()+","+salesmanid+","+stdvatstatus+")")
+                        +"',"+resultSet.getFloat(7).toString()+","+resultSet.getFloat(8).toString()+","+resultSet.getFloat(9).toString()+","+salesmanid+","+stdvatstatus+
+                        ","+resultSet.getInt(12)+","+resultSet.getInt(13)+","+resultSet.getInt(14)+")")
                 ftrId=sqlsrv1?.queryForObject<Int>("SELECT id from z_fintrade where ftrdate='"+tdate+"' and dsrid="+dsrId.toString()+" and dsrnumber="+resultSet.getInt(3).toString()+
                         " and cusid="+resultSet.getInt(4).toString())
 
-                sqlite2?.query("SELECT iteid,primaryqty,price,discount,discountpercent,linevalue,vatamount,vatid from storetradelines where ftrid="+resultSet.getInt(10).toString())
+                sqlite2?.query("SELECT iteid,primaryqty,price,discount,secdiscount,linevalue,vatamount,vatid from storetradelines where ftrid="+resultSet.getInt(10).toString())
                 {
                     resultSet1->
                     do{
@@ -635,7 +672,7 @@ class CommunicationServiceImpl:CommunicationService {
                             true -> 99
                             false -> resultSet1.getInt(8)
                         }
-                        sqlsrv1?.update("INSERT INTO z_storetradelines(ftrid,iteid,primaryqty,price,discount,discountpercent,linevalue,vatamount,vatid) values (" + ftrId + "," + resultSet1.getInt(1).toString()
+                        sqlsrv1?.update("INSERT INTO z_storetradelines(ftrid,iteid,primaryqty,price,discount,secdiscount,linevalue,vatamount,vatid) values (" + ftrId + "," + resultSet1.getInt(1).toString()
                                 + "," + resultSet1.getFloat(2).toString() + "," + resultSet1.getFloat(3).toString() + "," + resultSet1.getFloat(4).toString() + ","
                                 + resultSet1.getFloat(5).toString() + "," + resultSet1.getFloat(6).toString() + "," + resultSet1.getFloat(7).toString() + "," + vtcId.toString() + ")")
                     }while (resultSet1.next())
@@ -703,7 +740,6 @@ class CommunicationServiceImpl:CommunicationService {
     override fun CapitaltoAndroid() {
 
 
-
         sqlite2?.update("VACUUM")
 
 
@@ -742,14 +778,14 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from customer")
 
 
-        sqlsrv1?.query("select id,DESCR,ADDRESS,DISTRICT,USERSTR1 as title,tin as afm,TCDID as doyid,OCCUPATION,phone,phone2,replace(FAX,'''',' '),EMAIL,case vstid when 1 then 1 else 0 end,city,replace(COMMENT,'''',' '),ROTID from customers where code not like '99%'")
+        sqlsrv1?.query("select id,DESCR,ADDRESS,DISTRICT,USERSTR1 as title,tin as afm,TCDID as doyid,OCCUPATION,phone,phone2,replace(FAX,'''',' '),EMAIL,case vstid when 1 then 1 else 0 end,city,replace(COMMENT,'''',' '),ROTID,z_isthird from customers where code not like '99%'")
         {resultSet->
             do{
 
                 sqlite2?.update("INSERT INTO customer (erpid,name,address,district,title,afm,doyid,occupation,tel1,tel2,fax,email,vatstatusid,city,comments,routeid,erpupd) VALUES ("+resultSet.getInt(1).toString()+
                         ",'" +resultSet.getString(2)+"','"+resultSet.getString(3) +"','"+resultSet.getString(4)+"','"+resultSet.getString(5)+"','"+resultSet.getString(6)+
                         "',"+resultSet.getInt(7).toString()+",'"+resultSet.getString(8)+"','"+resultSet.getString(9)+"','"+resultSet.getString(10)+"','"+resultSet.getString(11)+
-                        "','"+resultSet.getString(12)+"',"+resultSet.getInt(13).toString()+",'"+resultSet.getString(14)+"','"+resultSet.getString(15)+"',"+resultSet.getInt(16).toString()+",1)"                    )
+                        "','"+resultSet.getString(12)+"',"+resultSet.getInt(13).toString()+",'"+resultSet.getString(14)+"','"+resultSet.getString(15)+"',"+resultSet.getInt(16).toString()+","+resultSet.getInt(17)+",1)"                    )
             } while (resultSet.next())
 
         }
@@ -811,7 +847,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from customerprices")
 
 
-        sqlsrv1?.query("SELECT domainid1,domainid2,fld1 from prdata where comid="+comid){
+        sqlsrv1?.query("SELECT domainid1,domainid2,fld1 from prdata where comId="+comId){
             resultSet->
             do {
                 sqlite2?.update("INSERT INTO customerprices (cusid,iteid,price) VALUES ("+resultSet.getInt(1).toString()+"," +resultSet.getString(2)+","+resultSet.getFloat(3).toString()+")")
@@ -835,6 +871,24 @@ class CommunicationServiceImpl:CommunicationService {
 
             do {
                 sqlite2?.update("INSERT INTO salesman (erpid,name) values ("+resultSet.getInt(1).toString()+",'" +resultSet.getString(2)+"')")
+            }  while (resultSet.next())
+
+        }
+
+
+        ///SUBSIDIARIES
+
+        sqlite2?.update("DELETE from subsidiary")
+
+
+        sqlsrv1?.query("SELECT cu.descr,cu.address,cu.district,cu.vstid,cu.rotid,cu.cusid,cu.city from custaddress cu i"){
+            resultSet->
+
+            do {
+                sqlite2?.update("INSERT INTO subsidiary (descr,street,district,vatstatus,rotid,perid,erpid,city) values ('"+
+                        resultSet.getString(1)+"','"+resultSet.getString(2)+"','"+resultSet.getString(3)+"',"+
+                        resultSet.getInt(4).toString()+","+resultSet.getInt(5)+","+resultSet.getInt(6) +
+                        ","+resultSet.getInt(7)+",'"+resultSet.getString(8)+"')")
             }  while (resultSet.next())
 
         }

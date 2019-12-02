@@ -1,6 +1,10 @@
 package gr.algo.AlgoMobileServer.config
 
+import com.sun.jndi.toolkit.url.Uri
+import gr.algo.AlgoMobileServer.context
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.context.properties.ConfigurationProperties
 import javax.sql.DataSource
 
@@ -8,10 +12,16 @@ import javax.sql.DataSource
 import org.springframework.boot.jdbc.DataSourceBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import org.springframework.jdbc.core.JdbcTemplate
+import javax.annotation.PostConstruct
 
 @Configuration
 class DBConfig {
+
+    @Value("\${algo.lui.sqlserverurl}")
+    val sqlServerUrl:String=""
+
     @Bean(name = arrayOf("sqlite"))
     @ConfigurationProperties(prefix = "spring.datasource")
     fun dataSource1(): DataSource {
@@ -36,13 +46,18 @@ class DBConfig {
 
     @Bean(name = arrayOf("mssql"))
     @ConfigurationProperties(prefix = "spring.second-datasource")
+
     fun dataSource2(): DataSource {
+
+
+
+
         val dataSourceBuilder = DataSourceBuilder.create()
-        // TODO("CONFIGURE CONNECTION STRINGS")
         dataSourceBuilder.driverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
         //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=xLINENICEICE")
-        dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=XT_002_2019")
-        //dataSourceBuilder.url("jdbc:sqlserver://localhost:1433;databaseName=XT_002_2019")
+        //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=XT_002_2019")
+        dataSourceBuilder.url(sqlServerUrl)
+
         return dataSourceBuilder.build()
         //return  DataSourceBuilder.create().build()
     }

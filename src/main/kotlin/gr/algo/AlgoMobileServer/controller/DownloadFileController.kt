@@ -1,5 +1,6 @@
 package gr.algo.AlgoMobileServer.controller
 
+import gr.algo.AlgoMobileServer.context
 import gr.algo.AlgoMobileServer.filestorage.FileStorage
 import gr.algo.AlgoMobileServer.service.CommunicationService
 import gr.algo.AlgoMobileServer.service.CommunicationServiceImpl
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController
 //import gr.algo.AlgoMobileServer.config.DBConfig
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.beans.factory.annotation.Qualifier
-
+import org.springframework.core.env.Environment
 
 
 @Controller

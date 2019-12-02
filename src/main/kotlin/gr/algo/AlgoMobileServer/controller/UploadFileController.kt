@@ -1,10 +1,14 @@
 package gr.algo.AlgoMobileServer.controller
 
+import gr.algo.AlgoMobileServer.context
 import gr.algo.AlgoMobileServer.filestorage.FileStorage
 import gr.algo.AlgoMobileServer.service.CommunicationService
 
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.couchbase.CouchbaseProperties
+import org.springframework.core.env.Environment
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,11 +40,19 @@ class UploadFileController {
         fileStorage.copyLatest(file.originalFilename!!)
 
         model.addAttribute("message", "File uploaded successfully! -> filename = " + file.getOriginalFilename())
-        //TODO("CONFIGURE ACTIVE FUNS")
-        //cs.AndroidtoAtlantis()
-        //cs.AtlantistoAndroid()
-        cs.AndroidtoCapital()
-        cs.CapitaltoAndroid()
+
+        val env: Environment = context.environment
+        val application:String=env.getProperty("algo.lui.application")!!
+        if (application=="capital") {
+            cs.AndroidtoCapital()
+            cs.CapitaltoAndroid()
+        }
+        else if (application=="atlantis")
+        {
+            cs.AndroidtoAtlantis()
+            cs.AtlantistoAndroid()
+
+        }
 
 
         //model.addAttribute("message", "File uploaded successfully! -> filename = " + file.getOriginalFilename())
