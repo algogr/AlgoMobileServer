@@ -1,5 +1,6 @@
 package gr.algo.AlgoMobileServer.filestorage
 
+import org.apache.juli.logging.Log
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -46,7 +47,9 @@ class FileStorageImpl: FileStorage{
 
     override fun backupFile(filename: String) {
         val file= File(rootLocation.resolve(filename).toString())
-        file.copyTo(File(rootLocation.resolve(filename).toString()+"."+ LocalDateTime.now().toString()))
+        println(rootLocation.resolve(filename).toString())
+        println(rootLocation.toString())
+        file.copyTo(File(rootLocation.resolve(filename).toString()+"."+ LocalDateTime.now().toString().replace(":","_")))
     }
 
     override fun copyLatest(filename: String) {

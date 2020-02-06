@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.env.Environment
+import javax.servlet.http.HttpServletResponse
+import javax.xml.ws.Response
 
 
 @Controller
@@ -28,15 +30,32 @@ class DownloadFileController {
     lateinit var commService:CommunicationServiceImpl
 
 
-
     @GetMapping("/files/{filename}")
     fun downloadFile(@PathVariable filename: String): ResponseEntity<Resource> {
-        println(filename)
-        val file = fileStorage.loadFile(filename)
-        //commService.AndroidtoAtlantis()
+        val env: Environment = context.environment
+        val ready:Int=env.getProperty("algo.global.isReadyFile")!!.toInt()
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")
-                .body(file);
+        if (ready==1)
+        {
+            val file = fileStorage.loadFile(filename + ".LATEST")
+            //commService.AndroidtoAtlantis()
+
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename()?.replace(".LATEST", "") + "\"")
+                    .body(file);
+        }
+        else
+        {
+            return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment: filenama=").body(null)
+
+
+        }
+
+
     }
+
+
+
+
 }

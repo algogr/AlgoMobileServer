@@ -10,7 +10,8 @@ import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 
 import org.springframework.context.annotation.Bean
-
+import java.io.File
+import java.nio.file.Paths
 
 
 @SpringBootApplication
@@ -27,17 +28,36 @@ class AlgoMobileServerApplication{
 			context?.close()
 			context = SpringApplication.run(AlgoMobileServerApplication::class.java, *args?.sourceArgs)
 		})
-		thread.setDaemon(false)
+        thread.setDaemon(false)
 		thread.start()
-	}
+
+
+    }
 }
 
 lateinit var context: ConfigurableApplicationContext
-
+@Autowired
+lateinit var fileStorage: FileStorage
 
 
 fun main(args: Array<String>) {
 	//runApplication<AlgoMobileServerApplication>(*args)
 	context=SpringApplication.run(AlgoMobileServerApplication::class.java, *args)
+    /*
+    val rootLocation = Paths.get("filestorage")
+    var fileLatest = File(rootLocation.toString()+"/algo.sqlite.LATEST")
+    var fileDb = File(rootLocation.toString()+"/algo.sqlite")
+    println(fileDb.absolutePath)
+    if (fileLatest.exists()) {
+        fileDb.delete()
+        fileLatest.copyTo(fileDb)
+    }
+
+     */
+
+
+
+
+
 
 }

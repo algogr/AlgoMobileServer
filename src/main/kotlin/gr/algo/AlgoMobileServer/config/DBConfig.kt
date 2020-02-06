@@ -14,13 +14,14 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.jdbc.core.JdbcTemplate
+import java.net.URL
 import javax.annotation.PostConstruct
 
 @Configuration
 class DBConfig {
 
-    @Value("\${algo.lui.sqlserverurl}")
-    val sqlServerUrl:String=""
+    @Value("\${algo.kavoukis.sqlserverurl}")
+    lateinit var sqlServerUrl:String
 
     @Bean(name = arrayOf("sqlite"))
     @ConfigurationProperties(prefix = "spring.datasource")
@@ -56,7 +57,7 @@ class DBConfig {
         dataSourceBuilder.driverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
         //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=xLINENICEICE")
         //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=XT_002_2019")
-        dataSourceBuilder.url(sqlServerUrl)
+        dataSourceBuilder.url("$sqlServerUrl")
 
         return dataSourceBuilder.build()
         //return  DataSourceBuilder.create().build()
