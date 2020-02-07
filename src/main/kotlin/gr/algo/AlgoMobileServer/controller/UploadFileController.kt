@@ -37,6 +37,7 @@ class UploadFileController {
     */
 
 
+
     @PostMapping("/upload")
     fun uploadMultipartFile(@RequestParam("uploadfile") file: MultipartFile, model: Model,response:HttpServletResponse){
         println("1")
@@ -63,12 +64,12 @@ class UploadFileController {
         wr.close()
         if (application=="capital") {
             cs.AndroidtoCapital()
-            cs.CapitaltoAndroid()
+            //cs.CapitaltoAndroid()
         }
         else if (application=="atlantis")
         {
             cs.AndroidtoAtlantis()
-            cs.AtlantistoAndroid()
+            //cs.AtlantistoAndroid()
 
         }
         //fileStorage.deleteFile(file.originalFilename!!)

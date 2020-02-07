@@ -27,13 +27,20 @@ class DownloadFileController {
     lateinit var fileStorage: FileStorage
 
     @Autowired
-    lateinit var commService:CommunicationServiceImpl
+    lateinit var cs:CommunicationServiceImpl
 
 
     @GetMapping("/files/{filename}")
     fun downloadFile(@PathVariable filename: String): ResponseEntity<Resource> {
         val env: Environment = context.environment
         val ready:Int=env.getProperty("algo.global.isReadyFile")!!.toInt()
+        val application:String=env.getProperty("algo.kavoukis.application")!!
+
+        if (application=="atlantis")
+            cs.AtlantistoAndroid()
+        else if (application=="capital")
+            cs.CapitaltoAndroid()
+
 
         if (ready==1)
         {
