@@ -20,7 +20,7 @@ import javax.annotation.PostConstruct
 @Configuration
 class DBConfig {
 
-    @Value("\${algo.kavoukis.sqlserverurl}")
+    @Value("\${algo.sqlserverurl}")
     lateinit var sqlServerUrl:String
 
     @Bean(name = arrayOf("sqlite"))
@@ -49,18 +49,11 @@ class DBConfig {
     @ConfigurationProperties(prefix = "spring.second-datasource")
 
     fun dataSource2(): DataSource {
-
-
-
-
         val dataSourceBuilder = DataSourceBuilder.create()
         dataSourceBuilder.driverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver")
-        //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=xLINENICEICE")
-        //dataSourceBuilder.url("jdbc:sqlserver://192.168.2.249:1433;databaseName=XT_002_2019")
         dataSourceBuilder.url("$sqlServerUrl")
 
         return dataSourceBuilder.build()
-        //return  DataSourceBuilder.create().build()
     }
 
 
@@ -78,7 +71,8 @@ class DBConfig {
 
         val dataSourceBuilder = DataSourceBuilder.create()
         dataSourceBuilder.driverClassName("org.sqlite.JDBC")
-        dataSourceBuilder.url("jdbc:sqlite:filestorage/algo.sqlite.LATEST")
+        //dataSourceBuilder.url("jdbc:sqlite:filestorage/algo.sqlite.LATEST")
+        dataSourceBuilder.url("jdbc:sqlite:filestorage/algo.sqlite")
         return dataSourceBuilder.build()
 
 

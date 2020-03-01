@@ -1,5 +1,6 @@
 package gr.algo.AlgoMobileServer.controller
 
+import gr.algo.AlgoMobileServer.AlgoMobileServerApplication
 import gr.algo.AlgoMobileServer.context
 import gr.algo.AlgoMobileServer.filestorage.FileStorage
 import gr.algo.AlgoMobileServer.service.CommunicationService
@@ -29,12 +30,15 @@ class DownloadFileController {
     @Autowired
     lateinit var cs:CommunicationServiceImpl
 
+    @Autowired
+    lateinit var app: AlgoMobileServerApplication
+
 
     @GetMapping("/files/{filename}")
     fun downloadFile(@PathVariable filename: String): ResponseEntity<Resource> {
         val env: Environment = context.environment
         val ready:Int=env.getProperty("algo.global.isReadyFile")!!.toInt()
-        val application:String=env.getProperty("algo.kavoukis.application")!!
+        val application:String=env.getProperty("algo.application")!!
 
         if (application=="atlantis")
             cs.AtlantistoAndroid()
@@ -44,22 +48,24 @@ class DownloadFileController {
 
         if (ready==1)
         {
-            val file = fileStorage.loadFile(filename + ".LATEST")
-            //commService.AndroidtoAtlantis()
+            //val file = fileStorage.loadFile(filename + ".LATEST")
+            val file = fileStorage.loadFile(filename)
 
 
+            //app.restart()
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename()?.replace(".LATEST", "") + "\"")
                     .body(file);
         }
         else
         {
-            return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment: filenama=").body(null)
+            //app.restart()
+            return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION,"attachment: filename=").body(null)
 
 
         }
 
-
+        app.restart()
     }
 
 

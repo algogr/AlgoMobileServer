@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.RowCallbackHandler
 import org.springframework.jdbc.core.RowMapper
 import org.springframework.jdbc.core.queryForObject
 import org.springframework.stereotype.Service
+import java.lang.System.exit
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.text.SimpleDateFormat
@@ -48,17 +49,17 @@ class CommunicationServiceImpl:CommunicationService {
 
 
 
-    @Value("\${algo.kavoukis.customercodemask}")
+    @Value("\${algo.customercodemask}")
     val codeMask:String?=""
-    @Value("\${algo.kavoukis.comid}")
+    @Value("\${algo.comid}")
     var comId:Int?=null
-    @Value("\${algo.kavoukis.salesmanid}")
+    @Value("\${algo.salesmanid}")
     var salesmanid:Int?=null
-    @Value("\${algo.kavoukis.customerpricesquery}")
+    @Value("\${algo.customerpricesquery}")
     var pricesQuery:String=""
-    @Value("\${algo.kavoukis.materialcodemask}")
+    @Value("\${algo.materialcodemask}")
     val materialMask:String?=""
-    @Value("\${algo.kavoukis,tableprefix}")
+    @Value("\${algo.tableprefix}")
     val tablePrefix:String?=""
 
 
@@ -675,14 +676,14 @@ class CommunicationServiceImpl:CommunicationService {
             do
 
             {
-
-                val code:String?=(Integer.parseInt(sqlsrv1?.queryForObject("SELECT TOP 1 CODE FROM customers where code like '$codeMask%' order by code desc", String::class.java))+1).toString().padStart(4,'0')
+                val aa=(Integer.parseInt(sqlsrv1?.queryForObject("SELECT TOP 1 CODE FROM customers where code like '$codeMask%' order by code desc", String::class.java)!!.substring(3))+1).toString().padStart(4,'0')
+                val code:String?="$codeMask.$aa"
                 val doy={if(resultSet.getInt(6)==0) "NULL" else resultSet.getInt(6).toString()}
-                sqlsrv1?.update("INSERT INTO CUSTOMERS(descr,address,district,userstr1,tin,tcdid,occupation,phone,phone2,fax,email,vstid,city,comment,rotid,code) " +
+                sqlsrv1?.update("INSERT INTO CUSTOMERS(descr,address,district,userstr1,tin,tcdid,occupation,phone,phone2,fax,email,vstid,city,comment,rotid,code,cntid,curid) " +
                         "VALUES ('"+resultSet.getString(1)+"','"+resultSet.getString(2)+"','"+resultSet.getString(3)+"','"+resultSet.getString(4)+"','"+
                         resultSet.getString(5)+"',"+doy()+",'"+resultSet.getString(7)+"','"+resultSet.getString(8)+"','"+
-                        resultSet.getString(9)+"','"+resultSet.getString(10)+"','"+resultSet.getString(11)+"',"+if(resultSet.getInt(12)==1)  '1' else '0'+"','"+
-                        resultSet.getString(13)+"','"+resultSet.getString(14)+"',"+resultSet.getString(15)+",'"+code+"')")
+                        resultSet.getString(9)+"','"+resultSet.getString(10)+"','"+resultSet.getString(11)+"',"+if(resultSet.getInt(12)==1)  "NULL" else "1"+",'"+
+                        resultSet.getString(13)+"','"+resultSet.getString(14)+"',"+resultSet.getString(15)+",'"+code+"',1,1)")
                 val oldId=resultSet.getString(16)
                 sqlite2?.update("UPDATE customer set erpupd=1 where id="+oldId)
                 val newId=sqlsrv1?.queryForObject<String>("select id from customers where code='"+code+"'")
@@ -741,7 +742,7 @@ class CommunicationServiceImpl:CommunicationService {
 
 
         sqlite2?.query("SELECT ftrdate,f.dsrid,f.dsrnumber,f.cuserpid,f.comments,f.deliveryaddress,f.netvalue,f.vatamount,f.totamount,f.id," +
-                "c.vatstatusid,f.suberpid,f.shptoperid,f.shptoaddid from fintrade f,customer c where c.erpid=f.cusid and f.erpupd=0")
+                "c.vatstatusid,f.suberpid,f.shptoperid,f.shptoaddid from fintrade f,customer c where c.id=f.cusid and f.erpupd=0")
         {   resultSet->
 
             do  {
@@ -749,7 +750,7 @@ class CommunicationServiceImpl:CommunicationService {
                 val stdvatstatus=resultSet.getInt(11)
                 val tdate=resultSet.getString(1)
 
-
+                println("TESTPAR:"+resultSet.getInt(3).toString())
                 when(resultSet.getInt(2))
                 {
                     1->dsrId=sqlsrv2?.queryForObject<Int>("SELECT tdadsrid from z_pda where salesmanid="+salesmanid)
@@ -802,6 +803,9 @@ class CommunicationServiceImpl:CommunicationService {
             sqlsrv1?.update("update z_storetradelines set itecode=(select code from stockitems where id=z_storetradelines.iteid)")
 
 
+
+
+
         println("SALES INVOICES")
 
         ///////////////////////////////////COLLECTIONS
@@ -815,6 +819,7 @@ class CommunicationServiceImpl:CommunicationService {
                 sqlsrv1?.update("INSERT INTO z_cash(trndate,cusid,justification,amount,salesmanid,dsrid) values('"+tdate+"',"+resultSet.getInt(1).toString()+
                         ",'"+resultSet.getString(3)+"',"+resultSet.getFloat(4).toString()+","+salesmanid+","+dsrid+")")
             }while (resultSet.next())
+
         }
 
 
@@ -825,7 +830,7 @@ class CommunicationServiceImpl:CommunicationService {
         sqlsrv1?.update("INSERT INTO z_log (task,backupfile,cdatetime) values (2,'algo.sqlite."+LocalDateTime.now().toString()+"-2',getdate())")
 
         println("Z_LOG")
-        ///
+
         sqlite2?.update("DELETE from fintrade ")
         sqlite2?.update("DELETE from storetradelines ")
         sqlite2?.update("DELETE from cashtrn ")
@@ -848,6 +853,7 @@ class CommunicationServiceImpl:CommunicationService {
 
 
 
+
         /////MATERIAL
         //TODO("ISACTIVE ITEMS FIELD?????")
         sqlite2?.update("DELETE from material")
@@ -860,7 +866,9 @@ class CommunicationServiceImpl:CommunicationService {
                 sqlite2?.update("INSERT INTO material (code,description,price,vatid,erpid,maxdiscount,unit) VALUES ('"+resultSet.getString(1)+"','"+resultSet.getString(2)+"',"+resultSet.getFloat(3).toString()+","+resultSet.getInt(4).toString()
                         +","+resultSet.getInt(5).toString()+","+resultSet.getFloat(6).toString()+",'"+resultSet.getString(7).toString()+"')")
             }while (resultSet.next())
+
             sqlite2?.update("END")
+            
 
         }
         println("MATERIAL")
@@ -875,6 +883,7 @@ class CommunicationServiceImpl:CommunicationService {
             do {
                 sqlite2?.update("INSERT INTO vat (codeid,percent0,percent1) VALUES ('"+resultSet.getString(1)+"',"+resultSet.getFloat(2)+","+resultSet.getFloat(3).toString()+")")
             } while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -895,8 +904,10 @@ class CommunicationServiceImpl:CommunicationService {
                 sqlite2?.update("INSERT INTO customer (erpid,name,address,district,title,afm,doyid,occupation,tel1,tel2,fax,email,vatstatusid,city,comments,routeid,erpupd,isthird) VALUES ("+resultSet.getInt(1).toString()+
                         ",'" +resultSet.getString(2)+"','"+resultSet.getString(3) +"','"+resultSet.getString(4)+"','"+resultSet.getString(5)+"','"+resultSet.getString(6)+
                         "',"+resultSet.getInt(7).toString()+",'"+resultSet.getString(8)+"','"+resultSet.getString(9)+"','"+resultSet.getString(10)+"','"+resultSet.getString(11)+
-                        "','"+resultSet.getString(12)+"',"+resultSet.getInt(13).toString()+",'"+resultSet.getString(14)+"','"+resultSet.getString(15)+"',"+resultSet.getInt(16).toString()+","+resultSet.getInt(17)+",1)"                    )
+                        "','"+resultSet.getString(12)+"',"+resultSet.getInt(13).toString()+",'"+resultSet.getString(14)+"','"+resultSet.getString(15)+"',"+resultSet.getInt(16).toString()+
+                        ",1,"+resultSet.getInt(17)+")")
             } while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -913,6 +924,7 @@ class CommunicationServiceImpl:CommunicationService {
             do {
                 sqlite2?.update("INSERT INTO custfindata (cusid,balance) VALUES ("+resultSet.getInt(1).toString()+"," +resultSet.getFloat(2).toString()+")")
             } while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -933,6 +945,7 @@ class CommunicationServiceImpl:CommunicationService {
             do {
                 sqlite2?.update("INSERT INTO doy(erpid,description,code) VALUES ("+resultSet.getInt(1).toString()+",'" +resultSet.getString(2)+"','"+resultSet.getString(3)+"')")
             }  while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -953,6 +966,7 @@ class CommunicationServiceImpl:CommunicationService {
             do {
                 sqlite2?.update("INSERT INTO route(erpid,description) VALUES ("+resultSet.getInt(1).toString()+",'" +resultSet.getString(2)+"')")
             }  while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -994,6 +1008,7 @@ class CommunicationServiceImpl:CommunicationService {
             do {
                 sqlite2?.update("INSERT INTO salesman (erpid,name) values ("+resultSet.getInt(1).toString()+",'" +resultSet.getString(2)+"')")
             }  while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -1004,15 +1019,16 @@ class CommunicationServiceImpl:CommunicationService {
         sqlite2?.update("DELETE from subsidiary")
 
 
-        sqlsrv1?.query("SELECT cu.descr,cu.address,cu.district,cu.vstid,cu.rotid,cu.cusid,cu.city from CUSTOMERBRANCHES cu"){
+        sqlsrv1?.query("SELECT cu.descr,cu.address,cu.district,cu.vstid,cu.rotid,cu.cusid,cu.id,cu.city from CUSTOMERBRANCHES cu"){
             resultSet->
             sqlite2?.update("BEGIN")
             do {
                 sqlite2?.update("INSERT INTO subsidiary (descr,street,district,vatstatus,rotid,perid,erpid,city) values ('"+
                         resultSet.getString(1)+"','"+resultSet.getString(2)+"','"+resultSet.getString(3)+"',"+
-                        resultSet.getInt(4).toString()+","+resultSet.getInt(5)+","+resultSet.getInt(6) +
-                        ","+resultSet.getInt(7)+",'"+resultSet.getString(8)+"')")
+                        resultSet.getInt(4).toString()+","+resultSet.getInt(5)+","+resultSet.getInt(6)
+                        +","+resultSet.getInt(7)+",'"+resultSet.getString(8)+"')")
             }  while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -1032,6 +1048,7 @@ class CommunicationServiceImpl:CommunicationService {
             do {
                 sqlite2?.update("INSERT INTO tabletinfo (salesmanid,printercode) VALUES ("+resultSet.getInt(1).toString()+",'" +resultSet.getString(2)+"')")
             }  while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -1057,6 +1074,7 @@ class CommunicationServiceImpl:CommunicationService {
                         +resultSet.getFloat(2).toString()+","+resultSet.getFloat(2).toString()+")")
 
             }  while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -1079,6 +1097,7 @@ class CommunicationServiceImpl:CommunicationService {
                         ",'"+resultSet.getString(3)+"')")
 
             }  while (resultSet.next())
+            
             sqlite2?.update("END")
 
         }
@@ -1222,7 +1241,9 @@ class CommunicationServiceImpl:CommunicationService {
             sqlite2?.update("BEGIN")
             sqlite2?.update(query)
             sqlite2?.update("END")
+            
         }
+
 
 
 

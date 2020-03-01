@@ -30,6 +30,7 @@ class AlgoMobileServerApplication{
 		})
         thread.setDaemon(false)
 		thread.start()
+		println("RESTART")
 
 
     }
@@ -43,17 +44,9 @@ lateinit var fileStorage: FileStorage
 fun main(args: Array<String>) {
 	//runApplication<AlgoMobileServerApplication>(*args)
 	context=SpringApplication.run(AlgoMobileServerApplication::class.java, *args)
-    /*
-    val rootLocation = Paths.get("filestorage")
-    var fileLatest = File(rootLocation.toString()+"/algo.sqlite.LATEST")
-    var fileDb = File(rootLocation.toString()+"/algo.sqlite")
-    println(fileDb.absolutePath)
-    if (fileLatest.exists()) {
-        fileDb.delete()
-        fileLatest.copyTo(fileDb)
-    }
 
-     */
+
+
 
 
 
